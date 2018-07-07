@@ -7,6 +7,7 @@ from joblib import Parallel, delayed
 
 def generate_average_over_spikes_per_template(base_folder,
                                               binary_data_filename,
+                                              binary_file_datatype,
                                               number_of_channels_in_binary_file,
                                               cut_time_points_around_spike=100):
     channel_map = np.load(path.join(base_folder, 'channel_map.npy'))
@@ -20,7 +21,7 @@ def generate_average_over_spikes_per_template(base_folder,
 
     num_of_channels = active_channel_map.size
 
-    data_raw = np.memmap(binary_data_filename, dtype=np.int16, mode='r')
+    data_raw = np.memmap(binary_data_filename, dtype=binary_file_datatype, mode='r')
     number_of_timepoints_in_raw = int(data_raw.shape[0] / number_of_channels_in_binary_file)
     data_raw_matrix = np.reshape(data_raw, (number_of_channels_in_binary_file, number_of_timepoints_in_raw),
                                  order='F')
@@ -56,6 +57,7 @@ def generate_average_over_spikes_per_template(base_folder,
 
 def generate_average_over_spikes_per_template_multiprocess(base_folder,
                                                            binary_data_filename,
+                                                           binary_file_datatype,
                                                            number_of_channels_in_binary_file,
                                                            cut_time_points_around_spike=100):
     channel_map = np.load(path.join(base_folder, 'channel_map.npy'))
@@ -69,7 +71,7 @@ def generate_average_over_spikes_per_template_multiprocess(base_folder,
 
     num_of_channels = active_channel_map.size
 
-    data_raw = np.memmap(binary_data_filename, dtype=np.int16, mode='r')
+    data_raw = np.memmap(binary_data_filename, dtype=binary_file_datatype, mode='r')
     number_of_timepoints_in_raw = int(data_raw.shape[0] / number_of_channels_in_binary_file)
     data_raw_matrix = np.reshape(data_raw, (number_of_channels_in_binary_file, number_of_timepoints_in_raw),
                                  order='F')

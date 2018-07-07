@@ -23,6 +23,11 @@ setup(name='spikesorting_tsne_guis',
         'Documentation': 'https://georgedimitriadis.github.io/spikesorting_tsne_guis/',
         'Code repository': 'https://github.com/georgedimitriadis/spikesorting_tsne_guis',
     },
+    include_package_data=True,
+    package_data={
+          # If any package contains *.ini files, include them
+          '': ['*.ini'],
+    },
     python_requires='>=3.5',
     zip_safe=False)
 

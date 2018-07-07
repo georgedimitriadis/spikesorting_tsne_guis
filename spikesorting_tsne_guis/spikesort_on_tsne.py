@@ -6,25 +6,25 @@ import sys
 import matplotlib
 matplotlib.use('Qt5Agg')
 import configparser
-from os import path
+import os
 import pandas as pd
 
 try:
-    from . import custom_viewbox
+    from . import custom_viewbox as cv
 except:  # Exception
-    from GUIs.Tsne_spikesort import custom_viewbox as cv
+    from spikesorting_tsne_guis import custom_viewbox as cv
 try:
     from . import matplotlib_widget
 except:  # Exception
-    from GUIs.Tsne_spikesort import matplotlib_widget
+    from spikesorting_tsne_guis import matplotlib_widget
 try:
     from . import helper_functions as hf
 except:  # Exception
-    from GUIs.Tsne_spikesort import helper_functions as hf
+    from spikesorting_tsne_guis import helper_functions as hf
 try:
     from . import spike_heatmap as sh
 except:  # Exception
-    from GUIs.Tsne_spikesort import spike_heatmap as sh
+    from spikesorting_tsne_guis import spike_heatmap as sh
 
 global currently_selected_spikes
 currently_selected_spikes = np.empty(0)
@@ -82,7 +82,7 @@ def spikesort_gui(load_previous_dataset=True):
         global num_of_shanks_for_vis
 
         config = configparser.ConfigParser()
-        config.read('defaults.ini')
+        config.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'defaults.ini'))
 
         if not 'SPIKES' in config:
             return
@@ -97,15 +97,15 @@ def spikesort_gui(load_previous_dataset=True):
             update_scater_plot()
 
             file_name = config['BINARY DATA FILE']['binary_data_filename']
-            if not path.isfile(file_name):
+            if not os.path.isfile(file_name):
                 all_exist = False
 
             prb_file = config['PROBE']['prb_file']
-            if not path.isfile(prb_file):
+            if not os.path.isfile(prb_file):
                 all_exist = False
 
             channel_map_file = config['PROBE']['channel_map_file']
-            if not path.isfile(channel_map_file):
+            if not os.path.isfile(channel_map_file):
                 all_exist = False
             else:
                 channel_map = np.squeeze(np.load(channel_map_file))
@@ -156,12 +156,12 @@ def spikesort_gui(load_previous_dataset=True):
 
     def action_load_new_data():
         config = configparser.ConfigParser()
-        config.read('defaults.ini')
+        config.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'defaults.ini'))
 
         if config['SPIKES']['spike_info_file'] == 'empty':
             directory = None
         else:
-            directory = path.dirname(config['SPIKES']['spike_info_file'])
+            directory = os.path.dirname(config['SPIKES']['spike_info_file'])
 
         fname = QtWidgets.QFileDialog.getOpenFileName(caption='Load spike_info.df file',
                                                       directory=directory)
@@ -238,7 +238,7 @@ def spikesort_gui(load_previous_dataset=True):
         if ok:
             config['PROBE']['num_of_shanks_for_vis'] = num_of_shanks_for_vis
 
-        with open('defaults.ini', 'w') as configfile:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'defaults.ini'), 'w') as configfile:
             config.write(configfile)
 
         load_config()
@@ -250,11 +250,11 @@ def spikesort_gui(load_previous_dataset=True):
                                                                    'spike_info.pd file. Any existing'
                                                                    ' spike_info.pd file will be overwritten.')
         print(fname)
-        spike_info.to_pickle(path.join(fname, 'spike_info.df'))
+        spike_info.to_pickle(os.path.join(fname, 'spike_info.df'))
 
         config = configparser.ConfigParser()
         config.read('defaults.ini')
-        config.set('SPIKES', 'spike_info_file', path.join(fname, 'spike_info.df'))
+        config.set('SPIKES', 'spike_info_file', os.path.join(fname, 'spike_info.df'))
         with open('defaults.ini', 'w') as configfile:
             config.write(configfile)
 
@@ -446,6 +446,63 @@ def spikesort_gui(load_previous_dataset=True):
         update_average_spikes_plot()
         update_autocorelogram()
         update_heatmap_plot()
+
+
+    def on_tsne_filter_for_type_combo_box_change(index):
+        global number_of_spikes
+        global spike_info
+
+        progdialog = QtWidgets.QProgressDialog()
+        progdialog.setGeometry(500, 500, 400, 40)
+        progdialog.setWindowTitle('Filtering t-SNE according to type')
+        progdialog.setMinimum(0)
+        progdialog.setMaximum(2)
+        progdialog.setWindowModality(QtCore.Qt.WindowModal)
+
+        progdialog.setLabelText('Generating colors and symbols ...                  ')
+        progdialog.show()
+        progdialog.setValue(0)
+        QtWidgets.QApplication.processEvents()
+
+        state = tsne_color_scheme_combo_box.currentIndex()
+        if state == 0:
+            type_state = 'type_after_cleaning'
+            template_state = 'template_after_cleaning'
+        else:
+            type_state = 'type_after_sorting'
+            template_state = 'template_after_sorting'
+
+
+        if index > 0:
+            type_to_show = hf.template_types[index]
+            spikes_to_show = np.array(spike_info[spike_info[type_state] == type_to_show].index.values)
+        elif index == 0:
+            spikes_to_show = range(number_of_spikes)
+
+
+        color_scheme = spike_info[template_state]
+        brush = []
+        symbol = []
+        for i in range(number_of_spikes):
+            if i in spikes_to_show:
+                brush.append(pg.intColor(color_scheme.iloc[i], hues=50, values=1, maxValue=255, minValue=150,
+                             maxHue=360, minHue=0, sat=255, alpha=255))
+            else:
+                brush.append(pg.intColor(color_scheme.iloc[i], hues=50, values=1, maxValue=255, minValue=150,
+                                         maxHue=360, minHue=0, sat=255, alpha=0))
+            symbol.append(hf.symbol_from_type(spike_info[type_state].iloc[i]))
+
+
+        progdialog.setValue(1)
+        progdialog.setLabelText('Applying colors and symbols ...                   ')
+        QtWidgets.QApplication.processEvents()
+
+        scatter_item.setBrush(brush)
+        scatter_item.setSymbol(symbol)
+
+        progdialog.setValue(2)
+        progdialog.close()
+
 
     def on_tsne_color_scheme_combo_box_change(index):
         global number_of_spikes
@@ -661,10 +718,10 @@ def spikesort_gui(load_previous_dataset=True):
     # ----------------------------------
 
     # Tool bar -------------------------
-    scroll_icon_file = path.join(sys.path[0], 'Icons',  'scroll_icon.png')
-    zoom_icon_file = path.join(sys.path[0], 'Icons', 'zoom_icon.png')
-    select_icon_file = path.join(sys.path[0], 'Icons',  'select_icon.png')
-    select_freeform_icon_file = path.join(sys.path[0], 'Icons',  'select_freeform_icon.png')
+    scroll_icon_file = os.path.join(sys.path[0], 'Icons',  'scroll_icon.png')
+    zoom_icon_file = os.path.join(sys.path[0], 'Icons', 'zoom_icon.png')
+    select_icon_file = os.path.join(sys.path[0], 'Icons',  'select_icon.png')
+    select_freeform_icon_file = os.path.join(sys.path[0], 'Icons',  'select_freeform_icon.png')
 
     menu_bar = main_window.menuBar()
     file_menu = menu_bar.addMenu('File')
@@ -708,6 +765,19 @@ def spikesort_gui(load_previous_dataset=True):
     tsne_color_scheme_combo_box.activated.connect(on_tsne_color_scheme_combo_box_change)
     grid_layout.addWidget(tsne_color_scheme_combo_box, 7, 2, 1, 1)
 
+    tsne_filter_for_type_combo_box = QtGui.QComboBox()
+    tsne_filter_for_type_combo_box.setStyleSheet("font-size:20px; font-family: Helvetica")
+    tsne_filter_for_type_combo_box.addItem('All')
+    tsne_filter_for_type_combo_box.addItem('Single Unit')
+    tsne_filter_for_type_combo_box.addItem('Single Unit Contaminated')
+    tsne_filter_for_type_combo_box.addItem('Single Unit Putative')
+    tsne_filter_for_type_combo_box.addItem('Multi Unit')
+    tsne_filter_for_type_combo_box.addItem('Unspecified 1')
+    tsne_filter_for_type_combo_box.addItem('Unspecified 2')
+    tsne_filter_for_type_combo_box.addItem('Unspecified 3')
+    tsne_filter_for_type_combo_box.activated.connect(on_tsne_filter_for_type_combo_box_change)
+    grid_layout.addWidget(tsne_filter_for_type_combo_box, 6, 2, 1, 1)
+
     button_remove_from_template = QtGui.QPushButton('Remove selected spikes from template')
     button_remove_from_template.setStyleSheet("font-size:20px; font-family: Helvetica")
     button_remove_from_template.clicked.connect(on_press_button_remove_from_template)
@@ -736,5 +806,12 @@ def spikesort_gui(load_previous_dataset=True):
         sys.exit(app.exec_())
 
 
-spikesort_gui(load_previous_dataset=True)
+def main():
+    if len(sys.argv) > 1:
+        spikesort_gui(load_previous_dataset=sys.argv[1])
+    else:
+        spikesort_gui(load_previous_dataset=True)
+
+if __name__ == "__main__":
+    main()
 
