@@ -2,8 +2,15 @@
 
 import pyqtgraph as pg
 from pyqtgraph import QtCore, QtGui
-from . import correct_pyqtgraph_roi as cpg
-from . import custom_viewboxmenu
+try:
+    from . import correct_pyqtgraph_roi as cpg
+except:
+    import correct_pyqtgraph_roi as cpg
+
+try:
+    from . import custom_viewboxmenu
+except:
+    import custom_viewboxmenu
 
 
 class CustomViewBox(pg.ViewBox):

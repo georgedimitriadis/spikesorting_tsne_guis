@@ -12,25 +12,52 @@ import pandas as pd
 try:
     from . import custom_viewbox as cv
 except:  # Exception
-    from spikesorting_tsne_guis import custom_viewbox as cv
+    try:
+        import custom_viewbox as cv
+    except:
+        from spikesorting_tsne_guis import custom_viewbox as cv
+
 try:
     from . import matplotlib_widget
 except:  # Exception
-    from spikesorting_tsne_guis import matplotlib_widget
+    try:
+        import matplotlib_widget
+    except:
+        from spikesorting_tsne_guis import matplotlib_widget
+
 try:
     from . import helper_functions as hf
 except:  # Exception
-    from spikesorting_tsne_guis import helper_functions as hf
+    try:
+        import helper_functions as hf
+    except:
+        from spikesorting_tsne_guis import helper_functions as hf
+
 try:
     from . import spike_heatmap as sh
 except:  # Exception
-    from spikesorting_tsne_guis import spike_heatmap as sh
+    try:
+        import spike_heatmap as sh
+    except:
+        from spikesorting_tsne_guis import spike_heatmap as sh
 
 global currently_selected_spikes
 currently_selected_spikes = np.empty(0)
 
 global currently_selected_templates
 currently_selected_templates = np.empty(0)
+
+global selectable_spikes
+selectable_spikes = np.empty(0)
+
+global on_spikes
+on_spikes = np.empty(0)
+
+global all_points_brush
+all_points_brush = []
+
+global all_points_symbols
+all_points_symbols = []
 
 global avg_electrode_curves
 avg_electrode_curves = []
@@ -261,6 +288,8 @@ def spikesort_gui(load_previous_dataset=True):
     def on_roi_selection(all_rois, freeform=False):
         global currently_selected_spikes
         global currently_selected_templates
+        global selectable_spikes
+        global on_spikes
         global tsne_spots
         global spike_info
 
@@ -286,6 +315,9 @@ def spikesort_gui(load_previous_dataset=True):
             else:
                 currently_selected_spikes = np.append(currently_selected_spikes, selected)
 
+        all_selectable_spikes = np.intersect1d(selectable_spikes, on_spikes)
+        currently_selected_spikes = currently_selected_spikes[np.in1d(currently_selected_spikes, all_selectable_spikes)]
+
         currently_selected_templates = hf.find_templates_of_spikes(spike_info, currently_selected_spikes)
         selected_templates_text_box.setText('Selected templates: ' + ', '.join(str(template) for template in
                                                                                currently_selected_templates))
@@ -304,19 +336,25 @@ def spikesort_gui(load_previous_dataset=True):
         global spike_info
 
         scatter_selected_item.clear()
-        scatter_selected_item.setData(pos=np.array([spike_info['tsne_x'].iloc[currently_selected_spikes].as_matrix(),
-                                                    spike_info['tsne_y'].iloc[currently_selected_spikes].as_matrix()]).T)
+        scatter_selected_item.setData(pos=np.array([spike_info['tsne_x'].iloc[currently_selected_spikes].values,
+                                                    spike_info['tsne_y'].iloc[currently_selected_spikes].values]).T)
         scatter_selected_item.setBrush((255, 255, 255))
 
     def update_scater_plot():
         global number_of_spikes
+        global selectable_spikes
+        global on_spikes
         global tsne_spots
         global spike_info
+        global all_points_brush
+        global all_points_symbols
 
         scatter_item.clear()
         scatter_selected_item.clear()
 
         number_of_spikes = len(spike_info)
+        selectable_spikes = np.arange(number_of_spikes)
+        on_spikes = selectable_spikes
 
         progdialog = QtWidgets.QProgressDialog()
         progdialog.setGeometry(500, 500, 400, 40)
@@ -338,6 +376,7 @@ def spikesort_gui(load_previous_dataset=True):
         progdialog.setValue(1)
 
         brush = [pg.mkBrush(color[i]) for i in range(number_of_spikes)]
+        all_points_brush = brush
 
         progdialog.setLabelText('Generating positions __________________________________')
         progdialog.setValue(2)
@@ -358,6 +397,7 @@ def spikesort_gui(load_previous_dataset=True):
             symbol.append(hf.symbol_from_type(spike_info['type_after_sorting'].iloc[i]))
 
         scatter_item.setSymbol(symbol)
+        all_points_symbols = symbol
 
         progdialog.setValue(5)
         progdialog.close()
@@ -391,9 +431,10 @@ def spikesort_gui(load_previous_dataset=True):
             add_data = raw_data[channel_map, int(t-time_points):int(t+time_points)]
             data_of_selected_spikes = data_of_selected_spikes + add_data
             prog += 1
-            progdialog.setValue(prog)
-            progdialog.setLabelText('Loading spike: ' + str(prog) + ' of ' + str(len(times)))
-            QtWidgets.QApplication.processEvents()
+            if prog % 100 == 0:
+                progdialog.setValue(prog)
+                progdialog.setLabelText('Loading spike: ' + str(prog) + ' of ' + str(len(times)))
+                QtWidgets.QApplication.processEvents()
 
         data_of_selected_spikes = data_of_selected_spikes / len(times)
 
@@ -436,7 +477,7 @@ def spikesort_gui(load_previous_dataset=True):
         global currently_selected_spikes
         global spike_info
 
-        spike_times = spike_info['times'].iloc[currently_selected_spikes].as_matrix().astype(np.int64)
+        spike_times = spike_info['times'].iloc[currently_selected_spikes].values.astype(np.int64)
         diffs, norm = hf.crosscorrelate_spike_trains(spike_times, spike_times, lag=1000)
         hist, edges = np.histogram(diffs, bins=50)
         autocorelogram_curve.setData(x=edges, y=hist, stepMode=True, fillLevel=0, brush=(0, 0, 255, 150))
@@ -447,31 +488,20 @@ def spikesort_gui(load_previous_dataset=True):
         update_autocorelogram()
         update_heatmap_plot()
 
-
     def on_tsne_filter_for_type_combo_box_change(index):
         global number_of_spikes
         global spike_info
-
-        progdialog = QtWidgets.QProgressDialog()
-        progdialog.setGeometry(500, 500, 400, 40)
-        progdialog.setWindowTitle('Filtering t-SNE according to type')
-        progdialog.setMinimum(0)
-        progdialog.setMaximum(2)
-        progdialog.setWindowModality(QtCore.Qt.WindowModal)
-
-        progdialog.setLabelText('Generating colors and symbols ...                  ')
-        progdialog.show()
-        progdialog.setValue(0)
-        QtWidgets.QApplication.processEvents()
+        global on_spikes
+        global all_points_brush
 
         state = tsne_color_scheme_combo_box.currentIndex()
+
         if state == 0:
-            type_state = 'type_after_cleaning'
-            template_state = 'template_after_cleaning'
-        else:
             type_state = 'type_after_sorting'
             template_state = 'template_after_sorting'
-
+        else:
+            type_state = 'type_after_cleaning'
+            template_state = 'template_after_cleaning'
 
         if index > 0:
             type_to_show = hf.template_types[index]
@@ -479,30 +509,46 @@ def spikesort_gui(load_previous_dataset=True):
         elif index == 0:
             spikes_to_show = range(number_of_spikes)
 
+        on_spikes = spikes_to_show
+
+        progdialog = QtWidgets.QProgressDialog()
+        progdialog.setGeometry(500, 500, 400, 40)
+        progdialog.setWindowTitle('Filtering t-SNE according to type')
+        progdialog.setMinimum(0)
+        progdialog.setWindowModality(QtCore.Qt.WindowModal)
+
+        progdialog.setLabelText('Generating colors and symbols ...                  ')
+        progdialog.show()
+        progdialog.setValue(0)
+        QtWidgets.QApplication.processEvents()
 
         color_scheme = spike_info[template_state]
-        brush = []
-        symbol = []
-        for i in range(number_of_spikes):
-            if i in spikes_to_show:
-                brush.append(pg.intColor(color_scheme.iloc[i], hues=50, values=1, maxValue=255, minValue=150,
-                             maxHue=360, minHue=0, sat=255, alpha=255))
-            else:
-                brush.append(pg.intColor(color_scheme.iloc[i], hues=50, values=1, maxValue=255, minValue=150,
-                                         maxHue=360, minHue=0, sat=255, alpha=0))
-            symbol.append(hf.symbol_from_type(spike_info[type_state].iloc[i]))
+        brush = list(all_points_brush)
 
+        spikes_to_hide = np.array(range(number_of_spikes))[~np.in1d(np.array(range(number_of_spikes)), spikes_to_show)]
 
+        i = 0
+        progdialog.setMaximum(len(spikes_to_hide))
+        for s in spikes_to_hide:
+            brush[s] = pg.intColor(color_scheme.iloc[s], hues=50, values=1, maxValue=255, minValue=150,
+                                   maxHue=360, minHue=0, sat=255, alpha=0)
+
+            if i % 10000 == 0:
+                progdialog.setValue(i)
+                progdialog.setLabelText('Hiding spikes ' + str(i) + ' of '
+                                        + str(len(spikes_to_hide)) + ' spikes.')
+                QtWidgets.QApplication.processEvents()
+            i = i + 1
+
+        progdialog.setMaximum(2)
+        progdialog.setLabelText('Applying colors ...                                ')
         progdialog.setValue(1)
-        progdialog.setLabelText('Applying colors and symbols ...                   ')
         QtWidgets.QApplication.processEvents()
 
         scatter_item.setBrush(brush)
-        scatter_item.setSymbol(symbol)
 
         progdialog.setValue(2)
         progdialog.close()
-
 
     def on_tsne_color_scheme_combo_box_change(index):
         global number_of_spikes
@@ -548,6 +594,19 @@ def spikesort_gui(load_previous_dataset=True):
 
         progdialog.setValue(2)
         progdialog.close()
+
+    def on_press_button_freeze_spikes():
+        global selectable_spikes
+        global currently_selected_spikes
+        global number_of_spikes
+
+        selectable_spikes = np.array(range(number_of_spikes))[~np.in1d(np.array(range(number_of_spikes)), currently_selected_spikes)]
+
+    def on_press_button_unfreeze_all():
+        global selectable_spikes
+        global number_of_spikes
+
+        selectable_spikes = np.array(range(number_of_spikes))
 
     def on_templates_table_selection():
         global currently_selected_templates
@@ -598,9 +657,9 @@ def spikesort_gui(load_previous_dataset=True):
                 cross_cor_grid_layout.addWidget(cross_corelogram_plots[-1], column, row, height, width)
 
                 spike_times_a = spike_info['times'].loc[
-                    spike_info['template_after_sorting'] == currently_selected_templates[column]].as_matrix().astype(np.int64)
+                    spike_info['template_after_sorting'] == currently_selected_templates[column]].values.astype(np.int64)
                 spike_times_b = spike_info['times'].loc[
-                    spike_info['template_after_sorting'] == currently_selected_templates[row]].as_matrix().astype(np.int64)
+                    spike_info['template_after_sorting'] == currently_selected_templates[row]].values.astype(np.int64)
 
                 diffs, norm = hf.crosscorrelate_spike_trains(spike_times_a, spike_times_b, lag=3000)
 
@@ -636,7 +695,7 @@ def spikesort_gui(load_previous_dataset=True):
         global spike_info
 
         if len(currently_selected_spikes) > 0:
-            all_templates = spike_info['template_after_sorting'].as_matrix()
+            all_templates = spike_info['template_after_sorting'].values
             max_template = np.max(all_templates)
             index, ok = QtWidgets.QInputDialog.getInt(central_window, 'New Template Index',
                                                      'Input the index of the new template',
@@ -644,13 +703,15 @@ def spikesort_gui(load_previous_dataset=True):
             if ok:
                 spike_info.loc[currently_selected_spikes, 'template_after_sorting'] = index
 
+            list_of_types = ['Noise', 'Single Unit', 'Single Unit Contaminated',
+                                                       'Single Unit Putative', 'MUA', 'Unspecified 1',
+                                                       'Unspecified 2', 'Unspecified 3']
             item, ok = QtWidgets.QInputDialog.getItem(central_window, 'New Template Type',
                                                       'Input the type of the new template',
-                                                      ['Noise', 'Single Unit', 'Single Unit Contaminated',
-                                                       'Single Unit Putative', 'MUA', 'Unspecified 1',
-                                                       'Unspecified 2', 'Unspecified 3'])
+                                                        list_of_types)
             if ok:
-                print(item)
+
+                spike_info.loc[currently_selected_spikes, 'type_after_sorting'] = hf.template_types[list_of_types.index(item)]
             update_tamplates_table()
     # ----------------------------------
 
@@ -765,6 +826,7 @@ def spikesort_gui(load_previous_dataset=True):
     tsne_color_scheme_combo_box.activated.connect(on_tsne_color_scheme_combo_box_change)
     grid_layout.addWidget(tsne_color_scheme_combo_box, 7, 2, 1, 1)
 
+
     tsne_filter_for_type_combo_box = QtGui.QComboBox()
     tsne_filter_for_type_combo_box.setStyleSheet("font-size:20px; font-family: Helvetica")
     tsne_filter_for_type_combo_box.addItem('All')
@@ -777,6 +839,16 @@ def spikesort_gui(load_previous_dataset=True):
     tsne_filter_for_type_combo_box.addItem('Unspecified 3')
     tsne_filter_for_type_combo_box.activated.connect(on_tsne_filter_for_type_combo_box_change)
     grid_layout.addWidget(tsne_filter_for_type_combo_box, 6, 2, 1, 1)
+
+    button_freeze_spikes = QtGui.QPushButton('Freeze selected spikes')
+    button_freeze_spikes.setStyleSheet("font-size:20px; font-family: Helvetica")
+    button_freeze_spikes.clicked.connect(on_press_button_freeze_spikes)
+    grid_layout.addWidget(button_freeze_spikes, 5, 3, 1, 1)
+
+    button_unfreeze_all = QtGui.QPushButton('Unfreeze all spikes')
+    button_unfreeze_all.setStyleSheet("font-size:20px; font-family: Helvetica")
+    button_unfreeze_all.clicked.connect(on_press_button_unfreeze_all)
+    grid_layout.addWidget(button_unfreeze_all, 6, 3, 1, 1)
 
     button_remove_from_template = QtGui.QPushButton('Remove selected spikes from template')
     button_remove_from_template.setStyleSheet("font-size:20px; font-family: Helvetica")
@@ -807,10 +879,13 @@ def spikesort_gui(load_previous_dataset=True):
 
 
 def main():
+    load_prev = True
     if len(sys.argv) > 1:
-        spikesort_gui(load_previous_dataset=sys.argv[1])
-    else:
-        spikesort_gui(load_previous_dataset=True)
+        if sys.argv[1] == 'False':
+            load_prev=False
+
+    spikesort_gui(load_previous_dataset=load_prev)
+
 
 if __name__ == "__main__":
     main()

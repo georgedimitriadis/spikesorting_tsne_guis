@@ -169,12 +169,8 @@ def crosscorrelate_spike_trains(spike_times_train_1, spike_times_train_2, lag=No
     return differences, norm
 
 
-types = {0: 'Noise', 1: 'SS', 2: 'SS_Contaminated', 3: 'SS_Putative', 4: 'MUA', 5: 'Unspesified_1', 6: 'Unspecified_2',
-         7: 'Unspecified_3'}
-
-
 def key_from_type(type_to_find):
-    for key, type in types.items():
+    for key, type in template_types.items():
         if type == type_to_find:
             return key
 
@@ -182,17 +178,17 @@ def key_from_type(type_to_find):
 
 
 def symbol_from_type(type_to_find):
-    if type_to_find == types[1]:
+    if type_to_find == template_types[1]:
         symbol = '+'
-    elif type_to_find == types[2]:
+    elif type_to_find == template_types[2]:
         symbol = 'star'
-    elif type_to_find == types[3]:
+    elif type_to_find == template_types[3]:
         symbol = 'o'
-    elif type_to_find == types[4]:
+    elif type_to_find == template_types[4]:
         symbol = 's'
-    elif type_to_find == types[5]:
+    elif type_to_find == template_types[5]:
         symbol = 't'
-    elif type_to_find == types[6]:
+    elif type_to_find == template_types[6]:
         symbol = 't2'
     else:
         symbol = 't3'
