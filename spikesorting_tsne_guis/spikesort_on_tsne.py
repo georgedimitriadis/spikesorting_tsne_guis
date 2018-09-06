@@ -120,7 +120,7 @@ def spikesort_gui(load_previous_dataset=True):
         if 'spike_info.df' in spike_info_file:
             spike_info = pd.read_pickle(spike_info_file)
 
-            update_tamplates_table()
+            update_templates_table()
             update_scater_plot()
 
             file_name = config['BINARY DATA FILE']['binary_data_filename']
@@ -285,6 +285,18 @@ def spikesort_gui(load_previous_dataset=True):
         with open('defaults.ini', 'w') as configfile:
             config.write(configfile)
 
+    def action_undo_template_assignment():
+        global currently_selected_spikes
+        global currently_selected_templates
+
+        spike_info.loc[currently_selected_spikes, 'template_after_sorting'] = spike_info.loc[
+            currently_selected_spikes, 'template_after_cleaning']
+
+        spike_info.loc[currently_selected_spikes, 'type_after_sorting'] = spike_info.loc[
+            currently_selected_spikes, 'type_after_cleaning']
+
+        update_templates_table()
+
     def on_roi_selection(all_rois, freeform=False):
         global currently_selected_spikes
         global currently_selected_templates
@@ -446,7 +458,7 @@ def spikesort_gui(load_previous_dataset=True):
         progdialog.setValue(len(times))
         progdialog.close()
 
-    def update_tamplates_table():
+    def update_templates_table():
         global number_of_spikes
         global spike_info
 
@@ -553,6 +565,7 @@ def spikesort_gui(load_previous_dataset=True):
     def on_tsne_color_scheme_combo_box_change(index):
         global number_of_spikes
         global spike_info
+        global all_points_brush
 
         progdialog = QtWidgets.QProgressDialog()
         progdialog.setGeometry(500, 500, 400, 40)
@@ -567,7 +580,7 @@ def spikesort_gui(load_previous_dataset=True):
         QtWidgets.QApplication.processEvents()
 
         spikes_to_change = range(number_of_spikes)
-
+        print(index)
         if index == 0:
             color_scheme = spike_info['template_after_sorting']
             brush = [pg.intColor(color_scheme.iloc[i], hues=50, values=1, maxValue=255, minValue=150,
@@ -589,6 +602,7 @@ def spikesort_gui(load_previous_dataset=True):
         progdialog.setLabelText('Applying colors and symbols ...                   ')
         QtWidgets.QApplication.processEvents()
 
+        all_points_brush = brush
         scatter_item.setBrush(brush)
         scatter_item.setSymbol(symbol)
 
@@ -688,11 +702,12 @@ def spikesort_gui(load_previous_dataset=True):
 
         if len(currently_selected_spikes) > 0:
             spike_info.loc[currently_selected_spikes, 'template_after_sorting'] = 0
-            update_tamplates_table()
+            update_templates_table()
 
     def on_press_button_make_template():
         global currently_selected_spikes
         global spike_info
+        global all_points_brush
 
         if len(currently_selected_spikes) > 0:
             all_templates = spike_info['template_after_sorting'].values
@@ -712,7 +727,8 @@ def spikesort_gui(load_previous_dataset=True):
             if ok:
 
                 spike_info.loc[currently_selected_spikes, 'type_after_sorting'] = hf.template_types[list_of_types.index(item)]
-            update_tamplates_table()
+
+            update_templates_table()
     # ----------------------------------
 
     # Main Window ----------------------
@@ -783,6 +799,7 @@ def spikesort_gui(load_previous_dataset=True):
     zoom_icon_file = os.path.join(sys.path[0], 'Icons', 'zoom_icon.png')
     select_icon_file = os.path.join(sys.path[0], 'Icons',  'select_icon.png')
     select_freeform_icon_file = os.path.join(sys.path[0], 'Icons',  'select_freeform_icon.png')
+    undo_icon_file = os.path.join(sys.path[0], 'Icons', 'undo_icon.jpg')
 
     menu_bar = main_window.menuBar()
     file_menu = menu_bar.addMenu('File')
@@ -806,6 +823,9 @@ def spikesort_gui(load_previous_dataset=True):
     custom_viewbox.connect_on_roi_select = on_roi_selection
     custom_viewbox.connect_on_roi_delete = on_roi_deletion
     main_toolbar.addAction(select_freeform)
+    undo_assignment = QtWidgets.QAction(QtGui.QIcon(undo_icon_file), 'assign selected spikes back to their original templates', main_window)
+    undo_assignment.triggered.connect(action_undo_template_assignment)
+    main_toolbar.addAction(undo_assignment)
     # ----------------------------------
 
     # Buttons --------------------------

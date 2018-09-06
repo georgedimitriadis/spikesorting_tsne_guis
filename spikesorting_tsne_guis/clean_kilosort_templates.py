@@ -20,13 +20,13 @@ def cleanup_kilosorted_data(base_folder, number_of_channels_in_binary_file, bina
                             type_of_binary=np.int16, order_of_binary='F', sampling_frequency=20000,
                             num_of_shanks_for_vis=None):
 
-    spike_templates = np.load(join(base_folder, r'spike_templates.npy'))
-    template_feature_ind = np.load(join(base_folder, 'template_feature_ind.npy'))
+    spike_templates = np.load(path.join(base_folder, r'spike_templates.npy'))
+    template_feature_ind = np.load(path.join(base_folder, 'template_feature_ind.npy'))
     number_of_templates = template_feature_ind.shape[0]
 
-    spike_times = np.load(join(base_folder, 'spike_times.npy')).astype(np.int)
+    spike_times = np.load(path.join(base_folder, 'spike_times.npy')).astype(np.int)
 
-    templates = np.load(join(base_folder, 'templates.npy'))
+    templates = np.load(path.join(base_folder, 'templates.npy'))
 
     data_raw = np.memmap(binary_data_filename, dtype=type_of_binary, mode='r')
 
@@ -44,15 +44,15 @@ def cleanup_kilosorted_data(base_folder, number_of_channels_in_binary_file, bina
     number_of_visible_single_spikes = int(max_spikes_in_single_spike_window / 2)
 
 
-    if exists(join(base_folder, 'template_marking.npy')):
-        template_marking = np.load(join(base_folder, 'template_marking.npy'))
+    if path.exists(path.join(base_folder, 'template_marking.npy')):
+        template_marking = np.load(path.join(base_folder, 'template_marking.npy'))
     else:
         template_marking = np.zeros(number_of_templates)
-        np.save(join(base_folder, 'template_marking.npy'), template_marking)
+        np.save(path.join(base_folder, 'template_marking.npy'), template_marking)
 
     global data
-    assert exists(join(base_folder, 'avg_spike_template.npy'))
-    data = np.load(join(base_folder, 'avg_spike_template.npy'))
+    assert path.exists(path.join(base_folder, 'avg_spike_template.npy'))
+    data = np.load(path.join(base_folder, 'avg_spike_template.npy'))
 
     # Update data functions and their helpers
     def get_visible_channels(current_template_index, visibility_threshold):
@@ -94,7 +94,7 @@ def cleanup_kilosorted_data(base_folder, number_of_channels_in_binary_file, bina
                                              x_pos_step)
         total_x_axis_points = ((time_points + 20) * len(all_possible_x_positions))
 
-        channel_map = np.squeeze(np.load(join(base_folder, 'channel_map.npy')))
+        channel_map = np.squeeze(np.load(path.join(base_folder, 'channel_map.npy')))
         electrode_positions = pd.Series(probe[0]['geometry'])[channel_map].tolist()
         elec_pos_x = [x for x, y in electrode_positions]
         elec_pos_y = [y for x, y in electrode_positions]
@@ -277,7 +277,7 @@ def cleanup_kilosorted_data(base_folder, number_of_channels_in_binary_file, bina
             return single_spikes_cube
 
     def update_heatmap_plot():
-        connected = np.squeeze(np.load(join(base_folder, 'channel_map.npy')))
+        connected = np.squeeze(np.load(path.join(base_folder, 'channel_map.npy')))
         connected_binary = np.in1d(np.arange(number_of_channels_in_binary_file), connected)
         bad_channels = np.squeeze(np.argwhere(connected_binary == False).astype(np.int))
         #bad_channels = None
@@ -395,7 +395,7 @@ def cleanup_kilosorted_data(base_folder, number_of_channels_in_binary_file, bina
         global current_template_index
         template_marking[current_template_index] = index
         update_marking_led()
-        np.save(join(base_folder, 'template_marking.npy'), template_marking)
+        np.save(path.join(base_folder, 'template_marking.npy'), template_marking)
 
     def on_press_classify_button_su():
         _classify_template(1)
