@@ -439,6 +439,7 @@ def spikesort_gui(load_previous_dataset=True):
         progdialog.show()
 
         prog = 0
+
         for t in times:
             add_data = raw_data[channel_map, int(t-time_points):int(t+time_points)]
             data_of_selected_spikes = data_of_selected_spikes + add_data
