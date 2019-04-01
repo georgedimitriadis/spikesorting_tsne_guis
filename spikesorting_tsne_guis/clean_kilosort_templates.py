@@ -21,12 +21,12 @@ def cleanup_kilosorted_data(base_folder, number_of_channels_in_binary_file, bina
                             num_of_shanks_for_vis=None):
 
     spike_templates = np.load(path.join(base_folder, r'spike_templates.npy'))
-    template_feature_ind = np.load(path.join(base_folder, 'template_feature_ind.npy'))
-    number_of_templates = template_feature_ind.shape[0]
+    # template_feature_ind = np.load(join(base_folder, 'template_feature_ind.npy'))
+    # number_of_templates = template_feature_ind.shape[0]
+    templates = np.load(path.join(base_folder, 'templates.npy'))
+    number_of_templates = templates.shape[0]
 
     spike_times = np.load(path.join(base_folder, 'spike_times.npy')).astype(np.int)
-
-    templates = np.load(path.join(base_folder, 'templates.npy'))
 
     data_raw = np.memmap(binary_data_filename, dtype=type_of_binary, mode='r')
 
@@ -51,8 +51,11 @@ def cleanup_kilosorted_data(base_folder, number_of_channels_in_binary_file, bina
         np.save(path.join(base_folder, 'template_marking.npy'), template_marking)
 
     global data
-    assert path.exists(path.join(base_folder, 'avg_spike_template.npy'))
-    data = np.load(path.join(base_folder, 'avg_spike_template.npy'))
+    if not path.exists(path.join(base_folder, 'avg_spike_template.npy')):
+        data = np.load(path.join(base_folder, 'templates.npy'))
+        data = np.reshape(data, (data.shape[0], data.shape[2], data.shape[1]))
+    else:
+        data = np.load(path.join(base_folder, 'avg_spike_template.npy'))
 
     # Update data functions and their helpers
     def get_visible_channels(current_template_index, visibility_threshold):
