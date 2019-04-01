@@ -121,7 +121,7 @@ def spikesort_gui(load_previous_dataset=True):
             spike_info = pd.read_pickle(spike_info_file)
 
             update_templates_table()
-            update_scater_plot()
+            generate_scater_plot()
 
             file_name = config['BINARY DATA FILE']['binary_data_filename']
             if not os.path.isfile(file_name):
@@ -352,7 +352,7 @@ def spikesort_gui(load_previous_dataset=True):
                                                     spike_info['tsne_y'].iloc[currently_selected_spikes].values]).T)
         scatter_selected_item.setBrush((255, 255, 255))
 
-    def update_scater_plot():
+    def generate_scater_plot():
         global number_of_spikes
         global selectable_spikes
         global on_spikes
@@ -368,6 +368,8 @@ def spikesort_gui(load_previous_dataset=True):
         selectable_spikes = np.arange(number_of_spikes)
         on_spikes = selectable_spikes
 
+        number_of_templates = len(np.unique(spike_info['template_after_sorting']))
+
         progdialog = QtWidgets.QProgressDialog()
         progdialog.setGeometry(500, 500, 400, 40)
         progdialog.setWindowTitle('Loading t-sne plot')
@@ -380,8 +382,8 @@ def spikesort_gui(load_previous_dataset=True):
         progdialog.setValue(0)
         QtWidgets.QApplication.processEvents()
 
-        color = [pg.intColor(spike_info['template_after_sorting'].iloc[i], hues=50, values=1, maxValue=255, minValue=150,
-                             maxHue=360, minHue=0,
+        color = [pg.intColor(spike_info['template_after_sorting'].iloc[i], hues=number_of_templates, values=1,
+                             maxValue=255, minValue=150, maxHue=360, minHue=0,
                              sat=255, alpha=255) for i in range(number_of_spikes)]
 
         progdialog.setLabelText('Generating brushes ____________________________________')
@@ -394,7 +396,7 @@ def spikesort_gui(load_previous_dataset=True):
         progdialog.setValue(2)
 
         tsne_spots = [{'pos': [spike_info['tsne_x'].iloc[i], spike_info['tsne_y'].iloc[i]],
-                       'data': 1, 'brush': brush[i]} for i in range(number_of_spikes)]
+                       'data': 1, 'brush': brush[i], 'size': 2} for i in range(number_of_spikes)]
 
         progdialog.setLabelText('Adding points to plot __________________________________')
         progdialog.setValue(3)
@@ -583,16 +585,18 @@ def spikesort_gui(load_previous_dataset=True):
         spikes_to_change = range(number_of_spikes)
         print(index)
         if index == 0:
+            number_of_templates = len(np.unique(spike_info['template_after_sorting']))
             color_scheme = spike_info['template_after_sorting']
-            brush = [pg.intColor(color_scheme.iloc[i], hues=50, values=1, maxValue=255, minValue=150,
+            brush = [pg.intColor(color_scheme.iloc[i], hues=number_of_templates, values=1, maxValue=255, minValue=150,
                                  maxHue=360, minHue=0, sat=255, alpha=255)
                      for i in spikes_to_change]
             symbol = []
             for i in spikes_to_change:
                 symbol.append(hf.symbol_from_type(spike_info['type_after_sorting'].iloc[i]))
         elif index == 1:
+            number_of_templates = len(np.unique(spike_info['template_after_cleaning']))
             color_scheme = spike_info['template_after_cleaning']
-            brush = [pg.intColor(color_scheme.iloc[i], hues=50, values=1, maxValue=255, minValue=150,
+            brush = [pg.intColor(color_scheme.iloc[i], hues=number_of_templates, values=1, maxValue=255, minValue=150,
                                  maxHue=360, minHue=0, sat=255, alpha=255)
                      for i in spikes_to_change]
             symbol = []
@@ -715,7 +719,7 @@ def spikesort_gui(load_previous_dataset=True):
             max_template = np.max(all_templates)
             index, ok = QtWidgets.QInputDialog.getInt(central_window, 'New Template Index',
                                                      'Input the index of the new template',
-                                                     max_template + 1, max_template + 1, max_template + 10000, 1)
+                                                     max_template + 1, 1, max_template + 10000, 1)
             if ok:
                 spike_info.loc[currently_selected_spikes, 'template_after_sorting'] = index
 
@@ -796,11 +800,12 @@ def spikesort_gui(load_previous_dataset=True):
     # ----------------------------------
 
     # Tool bar -------------------------
-    scroll_icon_file = os.path.join(sys.path[0], 'Icons',  'scroll_icon.png')
-    zoom_icon_file = os.path.join(sys.path[0], 'Icons', 'zoom_icon.png')
-    select_icon_file = os.path.join(sys.path[0], 'Icons',  'select_icon.png')
-    select_freeform_icon_file = os.path.join(sys.path[0], 'Icons',  'select_freeform_icon.png')
-    undo_icon_file = os.path.join(sys.path[0], 'Icons', 'undo_icon.jpg')
+    current_path = os.path.dirname(os.path.realpath(__file__))
+    scroll_icon_file = os.path.join(current_path, 'Icons',  'scroll_icon.png')
+    zoom_icon_file = os.path.join(current_path, 'Icons', 'zoom_icon.png')
+    select_icon_file = os.path.join(current_path, 'Icons',  'select_icon.png')
+    select_freeform_icon_file = os.path.join(current_path, 'Icons',  'select_freeform_icon.png')
+    undo_icon_file = os.path.join(current_path, 'Icons', 'undo_icon.jpg')
 
     menu_bar = main_window.menuBar()
     file_menu = menu_bar.addMenu('File')
