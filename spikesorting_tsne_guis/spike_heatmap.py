@@ -313,7 +313,9 @@ def create_heatmap_on_matplotlib_widget(widget, data, prb_file, window_size=60, 
 
     fig = widget.getFigure()
     fig.clf(True)
-    fig.set_tight_layout({'rect': [0, 0, 1, 1]})
+
+    #fig.set_tight_layout({'rect': [0, 0, 1, 1]})
+
     fig.canvas.toolbar.hide()
     if on_pyqtgraph:
         fig.patch.set_facecolor('black')
