@@ -189,10 +189,14 @@ def _avg_of_single_template_with_infos(template_index,
                                       spike_time + cut_time_points_around_spike)).astype(np.int32)
                            for spike_time in spike_times]
 
-        data = data_raw_matrix[:, spike_intervals].astype(np.float32)
+        data = data_raw_matrix[:, spike_intervals]
         data = np.mean(data, axis=1)
 
         data = data[active_channel_map, :]
+
+        del spike_times
+        del spike_intervals
+
         print('Added template ' + str(template) + ' with ' + str(spike_indices_in_template.shape[0]) + ' spikes')
     return template_index, data
 
@@ -259,8 +263,8 @@ def main(args):
 
         binary_file_datatype = np.int16
 
-        spike_info = np.load(spike_info_filename)
-        template_info = np.load(template_info_filename)
+        spike_info = np.load(spike_info_filename, allow_pickle=True)
+        template_info = np.load(template_info_filename, allow_pickle=True)
 
         cut_time_points_around_spike = cut_time_points_around_spike
 

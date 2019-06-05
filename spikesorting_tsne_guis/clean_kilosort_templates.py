@@ -16,14 +16,14 @@ import time
 # randomly
 MAX_SPIKES_TO_AUTOCORRELATE = 10000
 
+
 def cleanup_kilosorted_data(base_folder, number_of_channels_in_binary_file, binary_data_filename, prb_file,
                             type_of_binary=np.int16, order_of_binary='F', sampling_frequency=20000,
                             num_of_shanks_for_vis=None):
 
     spike_templates = np.load(path.join(base_folder, r'spike_templates.npy'))
-    # template_feature_ind = np.load(join(base_folder, 'template_feature_ind.npy'))
-    # number_of_templates = template_feature_ind.shape[0]
     templates = np.load(path.join(base_folder, 'templates.npy'))
+
     number_of_templates = templates.shape[0]
 
     spike_times = np.load(path.join(base_folder, 'spike_times.npy')).astype(np.int)
